@@ -56,13 +56,22 @@ io.on('connection', socket => {
 		socket.broadcast.to(socket.roomId).emit('project-message', data);
 		
 		if(isPrompt){
-			const prompt = message.replace('@ai', '')
-			const response = await generateResponse(prompt);
-			io.to(socket.roomId).emit('project-message', {
-				message: response,
-				email: 'AI',
-				sender: 'gemini'
-			})
+			try{
+				const prompt = message.replace('@ai', '')
+				const response = await generateResponse(prompt);
+				io.to(socket.roomId).emit('project-message', {
+					message: response,
+					email: 'AI',
+					sender: 'gemini'
+				})
+			}catch(error){
+				io.to(socket.roomId).emit('project-message', {
+					message: 'Tokens Exhausted',
+					email: 'AI',
+					sender: 'gemini'
+				})
+				console.log('Token Limit Reached');
+			}
 		}
 		
 	})

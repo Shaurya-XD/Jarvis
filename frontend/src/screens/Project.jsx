@@ -5,7 +5,11 @@ import { useGSAP } from "@gsap/react";
 import axiosInstance from '../config/axios'; 
 import { initializeSocket, receiveMessage, sendMessage } from '../config/socket';
 import { useUserContext } from '../context/user.context';
-import Markdown from 'markdown-to-jsx';
+import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import Editor from '@monaco-editor/react';
+import { getWebContainer } from '../config/webContainer';
 
 const Project = () => {
   const {user} = useUserContext();
@@ -16,6 +20,10 @@ const Project = () => {
   const [allMessages, setAllMessages] = useState([])
   const [message, setMessage] = useState('')
   const [allUsers, setAllUsers] = useState([])
+  const [currentFile, setCurrentFile] = useState(null)
+  const [fileTree, setFileTree] = useState({})
+
+  const [webContainer, setWebContainer] = useState(null)
 
   const [isPanelOpen, setIsPanelOpen] = useState(false);
 
@@ -34,6 +42,35 @@ const Project = () => {
 
   const projectId = location.state.project._id;
 
+  const MarkdownRenderer = ({ content }) => {
+  return (
+    <ReactMarkdown
+      components={{
+        code({ inline, className, children, ...props }) {
+          const match = /language-(\w+)/.exec(className || "");
+
+          return !inline && match ? (
+            <SyntaxHighlighter
+              style={vscDarkPlus}
+              language={match[1]}
+              PreTag="div"
+              {...props}
+            >
+              {String(children).replace(/\n$/, "")}
+            </SyntaxHighlighter>
+          ) : (
+            <code className={className} {...props}>
+              {children}
+            </code>
+          );
+        },
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
+};
+
   const send = () => {
     const outgoingData = {
       message,
@@ -51,6 +88,13 @@ const Project = () => {
   }, [allMessages]);
 
   useEffect(() => {
+    if(!webContainer){
+      getWebContainer().then(async(container) => {
+        setWebContainer(container); 
+        console.log("container started");
+      })
+    }
+
     initializeSocket(projectId);
 
     receiveMessage('user-joined', (data) => {
@@ -73,10 +117,45 @@ const Project = () => {
       ]);
     });
 
-    receiveMessage('project-message', data =>{
-      console.log(data)
-      setAllMessages((prev) => [...prev, data]);
-    })
+    receiveMessage('project-message', async (data) => {
+      let message = data.message;
+
+      try {
+        if (typeof message === 'string') {
+          const match = message.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+
+          if (match) {
+            message = match[1];
+          }
+
+          message = message.trim();
+        }
+
+        const parsedMessage = JSON.parse(message);
+
+        if (parsedMessage.fileTree) {
+          setFileTree(parsedMessage.fileTree);
+
+          if (webContainer) {
+            await webContainer.mount(parsedMessage.fileTree);
+          }
+        }
+
+        setAllMessages(prev => [
+          ...prev,
+          {
+            ...data,
+            message: parsedMessage.text || ''
+          }
+        ]);
+      } catch {
+        // Not JSON, treat as normal chat message
+        setAllMessages(prev => [
+          ...prev,
+          data
+        ]);
+      }
+    });
 
     const fetchData = async() => {
       try{
@@ -170,7 +249,7 @@ const Project = () => {
 
       <section className='bg-gray-300 h-full min-w-90 flex flex-col min-h-0'>
 
-        <header className='flex justify-between p-3 w-full bg-gray-500 rounded'>
+        <header className='flex justify-between p-3 w-full bg-gray-500'>
 
           <button
             onClick={() => setShowCollaboratorModal(true)}
@@ -231,13 +310,14 @@ const Project = () => {
           {
             allMessages.map((msg, idx) =>{
               if(msg.sender === 'gemini'){
-                const markDown = (<Markdown>{msg.message}</Markdown>)
                 return(
-                  <div key={idx} className="incoming bg-gray-200 px-2 pb-1 rounded-lg w-fit overflow-auto max-w-70 mt-2 mx-2">
+                  <div key={idx} className="incoming bg-gray-700 text-white px-2 pb-1 rounded-lg w-fit overflow-auto max-w-70 mt-2 mx-2">
                     <h6 className='-mb-0.5 text-sm font-light'>
                       {msg.email}
                     </h6>
-                    <p className='leading-4'>{markDown}</p>
+                    <div className="leading-4.5">
+                      <MarkdownRenderer content={msg.message} />
+                    </div>
                   </div>
                 )
 
@@ -256,7 +336,7 @@ const Project = () => {
                     <h6 className='-mb-0.5 text-sm font-light'>
                       {msg.email}
                     </h6>
-                    <p className='leading-4'>{msg.message}</p>
+                    <p className='leading-4.5'>{msg.message}</p>
                   </div>
                 )
               }else{
@@ -265,7 +345,7 @@ const Project = () => {
                     <h6 className='-mb-0.5 text-sm font-light'>
                       {msg.email}
                     </h6>
-                    <p className='leading-4'>{msg.message}</p>
+                    <p className='leading-4.5'>{msg.message}</p>
                   </div>
                 )
               }
@@ -308,6 +388,68 @@ const Project = () => {
 
         </div>
 
+      </section>
+
+      <section className="section right h-screen w-full flex">
+        <div className="explorer h-full min-w-60 bg-gray-600 py-1 flex flex-col justify-between">
+          <div className="file-tree flex flex-col gap-1"> 
+            {
+              Object.keys(fileTree).map((file, index) => (
+                 <button onClick={()=>{
+                  setCurrentFile(file)
+                 }} key={index} className={`tree-element cursor-pointer bg-gray-400 py-1 ${currentFile === file ? 'underline decoration-2 underline-offset-4': ''} px-3`}>
+                  <p className='font-semibold text-lg'>{file}</p>
+                </button>
+              ))
+            }
+          </div>
+          <div className='mx-2 mb-2'>
+            <button onClick={async () => {
+              await webContainer.mount(fileTree);
+
+              const installProcess = await webContainer.spawn("npm", ["install"]);
+
+              installProcess.output.pipeTo(new WritableStream({
+                write(chunk) {
+                  console.log(chunk);
+                }
+              }))
+
+              const runProcess = await webContainer.spawn("npm", ["start"]);
+
+              runProcess.output.pipeTo(new WritableStream({
+                write(chunk) {
+                  console.log(chunk);
+                }
+              }))
+
+            }} className='bg-red-400 w-full rounded h-10'>run</button>
+          </div>
+        </div>
+        <div className="code-editor h-full w-full py-2 bg-[#1E1E1E] overflow-hidden">
+          {fileTree[currentFile] && (
+            <Editor
+              height="100%"
+              width="100%"
+              theme="vs-dark"
+              language="javascript"
+              value={fileTree[currentFile]?.file?.contents || ""}
+              onChange={(value) => {
+                setFileTree({
+                  ...fileTree,
+                  [currentFile]: {
+                    ...fileTree[currentFile],
+                    file: {
+                      ...fileTree[currentFile].file,
+                      contents: value
+                    }
+                  }
+                });
+              }}
+            />
+            
+          )}
+        </div>
       </section>
 
       {/* ================= Collaborator Modal ================= */}
