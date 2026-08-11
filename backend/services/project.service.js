@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Project from "../models/project.models.js";
 import User from "../models/users.models.js";
 
@@ -67,5 +68,29 @@ export const getProjectById = async({ projectId }) => {
     }
 
     const project = await Project.findById(projectId).populate('users');
+    return project;
+}
+
+export const updateFileTree = async({projectId, fileTree}) => {
+    if(!projectId){
+        throw new Error("projectId is required")
+    }
+
+    if(!mongoose.Types.ObjectId.isValid(projectId)){
+        throw new Error("Invalid projectId")
+    }
+
+    if(!fileTree){
+        throw new Error("fileTree is required")
+    }
+
+    const project = await Project.findOneAndUpdate({
+        _id: projectId
+    }, {
+        fileTree
+    }, {
+        new:True
+    })
+
     return project;
 }

@@ -10,11 +10,14 @@ import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 import Editor from '@monaco-editor/react';
 import { getWebContainer } from '../config/webContainer';
+import axios from 'axios';
 
 const Project = () => {
   const {user} = useUserContext();
   const location = useLocation();
   console.log(location.state);
+  const [iFrameUrl, setiFrameUrl] = useState(null)
+  const [runProcess, setRunProcess] = useState(null)
 
   const messageBox = useRef()
   const [allMessages, setAllMessages] = useState([])
@@ -176,6 +179,17 @@ const Project = () => {
 
     fetchData();
   },[])
+
+  function saveFileTree(ft){
+    axios.put('/projects/update-file-tree', {
+      projectId: project._id,
+      fileTree: ft
+    }).then(res =>{
+      console.log(res.data)
+    }).catch(err =>{
+      console.log(err)
+    })
+  }
 
   useGSAP(() => {
     if (isPanelOpen) {
@@ -391,6 +405,13 @@ const Project = () => {
       </section>
 
       <section className="section right h-screen w-full flex">
+        {iFrameUrl && webContainer && 
+          <div className='flex flex-col h-full w-[50vw]'>
+            <div> <input type="text" value={iFrameUrl} onChange={(e)=> setiFrameUrl(e.target.value)} className='w-full bg-amber-100' /></div>
+            <iframe src={iFrameUrl} className='w-full h-full'></iframe>
+          </div>
+        }
+
         <div className="explorer h-full min-w-60 bg-gray-600 py-1 flex flex-col justify-between">
           <div className="file-tree flex flex-col gap-1"> 
             {
@@ -415,13 +436,24 @@ const Project = () => {
                 }
               }))
 
-              const runProcess = await webContainer.spawn("npm", ["start"]);
+              if(runProcess){
+                runProcess.kill()
+              }
 
-              runProcess.output.pipeTo(new WritableStream({
+              let tempRunProcess = await webContainer.spawn("npm", ["start"]);
+
+              tempRunProcess.output.pipeTo(new WritableStream({
                 write(chunk) {
                   console.log(chunk);
                 }
               }))
+
+              setRunProcess(tempRunProcess)
+
+              webContainer.on('server-ready', (port, url)=>{
+                console.log(port, url)
+                setiFrameUrl(url)
+              })
 
             }} className='bg-red-400 w-full rounded h-10'>run</button>
           </div>
@@ -435,17 +467,20 @@ const Project = () => {
               language="javascript"
               value={fileTree[currentFile]?.file?.contents || ""}
               onChange={(value) => {
-                setFileTree({
-                  ...fileTree,
-                  [currentFile]: {
-                    ...fileTree[currentFile],
-                    file: {
-                      ...fileTree[currentFile].file,
-                      contents: value
+                const updatedFileTree = {
+                    ...fileTree,
+                    [currentFile]: {
+                        ...fileTree[currentFile],
+                        file: {
+                            ...fileTree[currentFile].file,
+                            contents: value
+                        }
                     }
-                  }
-                });
-              }}
+                };
+
+                setFileTree(updatedFileTree);
+                saveFileTree(updatedFileTree);
+            }}
             />
             
           )}

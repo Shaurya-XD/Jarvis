@@ -34,8 +34,14 @@ const Home = () => {
     console.log(name);
 
     try{
-      const reponse = await axiosInstance.post('/projects/create', {name});
-      console.log(reponse);
+      const response = await axiosInstance.post('/projects/create', { name });
+      console.log(response.data)
+
+      setProjects(prevProjects => [
+          ...prevProjects,
+          response.data.project
+      ]);
+
       setIsModelOpen(false);
       setName('');
 

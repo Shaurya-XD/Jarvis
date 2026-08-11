@@ -1,4 +1,4 @@
-import { createProjectController, getAllProjects, addUserToProjectController, getProjectByIdController } from "../controllers/project.controller.js";
+import { createProjectController, getAllProjects, addUserToProjectController, getProjectByIdController, updateTree } from "../controllers/project.controller.js";
 import { body } from "express-validator";
 import { authUser } from "../middleware/auth.middleware.js";
 import { Router } from "express";
@@ -20,5 +20,11 @@ router.put('/add-user',
     authUser, addUserToProjectController)
 
 router.get('/get-project/:projectId', authUser, getProjectByIdController)
+
+router.put('/update-file-tree', authUser,
+    body('projectId').isString().withMessage('Project ID is required'),
+    body('fileTree').isObject().withMessage('File tree is required'),
+    updateTree
+)
 
 export default router;
