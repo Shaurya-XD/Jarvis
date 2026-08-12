@@ -10,6 +10,13 @@ import aiRoutes from './routes/ai.routes.js'
 connect();
 
 const app = express();
+app.use((req, res, next) => {
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
+  next();
+});
+
+app.use(express.static("public"))
 
 app.use(cookieParser());
 app.use(morgan('dev'));
@@ -24,8 +31,8 @@ app.use('/users', userRoutes);
 app.use('/projects', projectRoutes);
 app.use('/ai', aiRoutes);
 
-app.get('/', (req, res) => {
-    res.send('Hello World');
-});
+// app.get('/', (req, res) => {
+//     res.send('Hello World');
+// });
 
 export default app;
