@@ -18,6 +18,8 @@ const projectSchema = new mongoose.Schema({
         type: Object,
         default: () => ({})
     }
+}, {
+    minimize: false
 })
 
 const Project = mongoose.model('project', projectSchema);

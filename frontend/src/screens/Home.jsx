@@ -54,15 +54,26 @@ const Home = () => {
 
   return (
     <>
-      <main className='p-4'>
-        <div className='flex flex-wrap gap-4 items-center'>
+      <main className='min-h-screen bg-slate-950 px-6 py-10 text-slate-100 sm:px-10'>
+        <div className='mx-auto max-w-6xl'>
+          <header className='mb-10 flex flex-col gap-5 border-b border-slate-800 pb-8 sm:flex-row sm:items-end sm:justify-between'>
+            <div>
+              <div className='mb-3 flex items-center gap-2 text-sm font-medium text-indigo-300'>
+                <span className='flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500/15 text-indigo-300'><i className="ri-code-s-slash-line"></i></span>
+                Workspace
+              </div>
+              <h1 className='text-3xl font-semibold tracking-tight text-white'>Your projects</h1>
+              <p className='mt-2 text-slate-400'>Create, collaborate, and build in one shared workspace.</p>
+            </div>
           <button onClick={()=>{
             setIsModelOpen(true);
-          }} className='bg-gray-300 border-4 border-black/20 py-4 px-10 rounded-2xl flex justify-between items-center hover:scale-105 gap-2'>
-            <h2 className='font-semibold'>New Project</h2>
-            <i className="ri-folder-add-line text-2xl"></i>
+          }} className='inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-500 px-5 py-3 font-semibold text-white shadow-lg shadow-indigo-950/40 transition hover:bg-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-950'>
+            <i className="ri-add-line text-xl"></i>
+            <span>New project</span>
           </button>
+          </header>
 
+          <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'>
           {
             projects.map((project) => {
               return(
@@ -70,48 +81,56 @@ const Home = () => {
                   navigate(`/project`, {
                     state : {project}
                   })
-                }} className='font-semibold py-3 px-4 my-2 rounded-xl flex flex-col items-center min-w-50 hover:bg-gray-400 bg-gray-100 border-2 border-black/20'>
-                  <div>
-                    <i className="ri-folder-line pr-1"></i>
-                    {project.name}
+                }} className='group cursor-pointer rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-500/50 hover:bg-slate-900 hover:shadow-xl hover:shadow-black/20'>
+                  <div className='flex items-start justify-between gap-3'>
+                    <span className='flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-xl text-indigo-300'><i className="ri-folder-3-line"></i></span>
+                    <i className="ri-arrow-right-up-line text-lg text-slate-600 transition group-hover:text-indigo-300"></i>
                   </div>
-                  <div className='flex gap-1'>
-                    <i className="ri-group-line"></i>
-                    {project.users.length}
+                  <div className='mt-5'>
+                    <h2 className='truncate text-lg font-semibold text-white'>{project.name}</h2>
+                    <div className='mt-3 flex items-center gap-2 text-sm text-slate-400'>
+                      <i className="ri-group-line"></i>
+                      <span>{project.users.length} collaborator{project.users.length !== 1 ? 's' : ''}</span>
+                    </div>
                   </div>
 
                 </div>
               )
             })
           }
+          </div>
         </div>
 
         {isModelOpen && (
-          <div className='fixed h-screen w-screen top-0 left-0 bg-gray-600/50'>
-            <div className='fixed top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 p-8 bg-white rounded-2xl'>
-              <h2 className='font-semibold text-2xl -mt-2'>Create New Project</h2>
+          <div className='fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 px-4 backdrop-blur-sm'>
+            <div className='w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl'>
+              <div className='mb-6'>
+                <span className='flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/15 text-xl text-indigo-300'><i className="ri-folder-add-line"></i></span>
+                <h2 className='mt-4 text-2xl font-semibold text-white'>Create a project</h2>
+                <p className='mt-1 text-sm text-slate-400'>Start a new shared coding workspace.</p>
+              </div>
               {error && (
-                <div className="mt-4 bg-red-500/10 border border-red-500 text-red-400 p-3 rounded-xl">
+                <div className="mb-4 rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">
                   {error}
                 </div>
               )}
               <form onSubmit={(e) => {
                 submitHandler(e);
               }}>
-                <div className='flex flex-col justify-between gap-0.5 py-3 -mt-1.5'>
-                  <label htmlFor="pName">Project Name</label>
-                  <input className='border px-2 py-1' id='pName' type="text" value={name} onChange={(e) => {
+                <div className='flex flex-col gap-2'>
+                  <label className='text-sm font-medium text-slate-200' htmlFor="pName">Project name</label>
+                  <input className='rounded-xl border border-slate-700 bg-slate-950 px-3 py-2.5 text-white outline-none transition placeholder:text-slate-600 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20' id='pName' type="text" placeholder='e.g. Portfolio website' value={name} onChange={(e) => {
                     setName(e.target.value)
                   }}/>
                 </div>
 
-                <div className='flex justify-between items-center gap-4'>
-                  <button type="submit" className='bg-green-400 py-2 px-7 rounded-xl text-white'>Create</button>
-
+                <div className='mt-6 flex justify-end items-center gap-3'>
                   <button type="button" onClick={()=>{
                     setName('');
                     setIsModelOpen(false);
-                  }} className='bg-red-400 py-2 px-7 rounded-xl text-white'>Cancle</button>
+                  }} className='rounded-xl px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white'>Cancel</button>
+
+                  <button type="submit" className='rounded-xl bg-indigo-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-400'>Create project</button>
                 </div>
               </form>
             </div>

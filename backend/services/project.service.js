@@ -89,7 +89,7 @@ export const updateFileTree = async({projectId, fileTree}) => {
     }, {
         fileTree
     }, {
-        new:True
+        new: true
     })
 
     return project;
