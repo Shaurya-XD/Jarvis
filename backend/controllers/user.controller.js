@@ -3,6 +3,13 @@ import {createUser, getAllUsers} from "../services/user.service.js";
 import {validationResult} from 'express-validator';
 import redisClient from "../services/redis.service.js";
 
+const authCookieOptions = {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000
+};
+
 export const createUserController = async(req, res) => {
     const errors = validationResult(req);
 
@@ -13,10 +20,7 @@ export const createUserController = async(req, res) => {
     try{
         const user = await createUser(req.body);
         const token = user.generateJWT();
-        res.cookie('token', token, {
-            httpOnly: true,
-            maxAge: 24 * 60 * 60 * 1000 // 1 day
-        });
+        res.cookie('token', token, authCookieOptions);
         delete user._doc.password;
         res.status(201).json({message: 'User Created Successfully', user, token});
     }catch(err){
@@ -38,10 +42,7 @@ export const loginUserController = async(req, res) => {
             throw new Error("Invalid Credintials");
         }
         const token = user.generateJWT();
-        res.cookie('token', token, {
-            httpOnly: true,
-            maxAge: 24 * 60 * 60 * 1000 // 1 day
-        });
+        res.cookie('token', token, authCookieOptions);
         delete user._doc.password;
         res.status(200).json({message: 'User Logged In Successfully', user, token});
 

@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import axiosInstance from '../config/axios'; 
-import { initializeSocket, receiveMessage, sendMessage } from '../config/socket';
+import { disconnectSocket, initializeSocket, receiveMessage, sendMessage } from '../config/socket';
 import { useUserContext } from '../context/user.context';
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -26,6 +26,7 @@ const Project = () => {
   const [fileTree, setFileTree] = useState({})
 
   const [webContainer, setWebContainer] = useState(null)
+  const serverReadyUnsubscribe = useRef(null);
 
   const [isPanelOpen, setIsPanelOpen] = useState(false);
 
@@ -90,12 +91,18 @@ const Project = () => {
   }, [allMessages]);
 
   useEffect(() => {
-    if(!webContainer){
-      getWebContainer().then(async(container) => {
-        setWebContainer(container); 
-        console.log("container started");
+    let active = true;
+
+    getWebContainer()
+      .then((container) => {
+        if (active) {
+          setWebContainer(container);
+          console.log("container started");
+        }
       })
-    }
+      .catch((error) => {
+        console.error('Unable to boot WebContainer:', error);
+      });
 
     initializeSocket(projectId);
 
@@ -139,9 +146,8 @@ const Project = () => {
           setFileTree(parsedMessage.fileTree);
           saveFileTree(parsedMessage.fileTree);
 
-          if (webContainer) {
-            await webContainer.mount(parsedMessage.fileTree);
-          }
+          const container = await getWebContainer();
+          await container.mount(parsedMessage.fileTree);
         }
 
         setAllMessages(prev => [
@@ -182,7 +188,13 @@ const Project = () => {
     }
 
     fetchData();
-  },[])
+    return () => {
+      active = false;
+      disconnectSocket();
+      serverReadyUnsubscribe.current?.();
+      serverReadyUnsubscribe.current = null;
+    };
+  }, [projectId])
 
   function saveFileTree(ft){
     axiosInstance.put('/projects/update-file-tree', {
@@ -413,7 +425,7 @@ const Project = () => {
         {iFrameUrl && webContainer && 
           <div className='flex flex-col h-full w-[50vw] border-r border-slate-800 bg-white'>
             <div className='border-b border-slate-200 bg-slate-50 px-3 py-2'> <input type="text" value={iFrameUrl} onChange={(e)=> setiFrameUrl(e.target.value)} className='w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 outline-none focus:border-indigo-400' /></div>
-            <iframe src={iFrameUrl} className='w-full h-full'></iframe>
+            <iframe src={iFrameUrl} allow="cross-origin-isolated" className='w-full h-full' title="Project preview"></iframe>
           </div>
         }
 
@@ -433,7 +445,8 @@ const Project = () => {
             </div>
           </div>
           <div className='mx-3 mb-1'>
-            <button onClick={async () => {
+            <button disabled={!webContainer} onClick={async () => {
+              if (!webContainer) return;
               await webContainer.mount(fileTree);
 
               const installProcess = await webContainer.spawn("npm", ["install"]);
@@ -458,12 +471,13 @@ const Project = () => {
 
               setRunProcess(tempRunProcess)
 
-              webContainer.on('server-ready', (port, url)=>{
+              serverReadyUnsubscribe.current?.();
+              serverReadyUnsubscribe.current = webContainer.on('server-ready', (port, url)=>{
                 console.log(port, url)
                 setiFrameUrl(url)
               })
 
-            }} className='flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400'><i className="ri-play-fill"></i>Run project</button>
+            }} className='flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-500 text-sm font-semibold text-emerald-950 transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50'><i className="ri-play-fill"></i>Run project</button>
           </div>
         </div>
         <div className="code-editor h-full min-w-0 w-full bg-[#1e1e1e] overflow-hidden">

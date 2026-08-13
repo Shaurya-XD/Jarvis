@@ -10,13 +10,14 @@ import aiRoutes from './routes/ai.routes.js'
 connect();
 
 const app = express();
+
+// WebContainer requires every document and same-origin resource to opt in to
+// cross-origin isolation. Keep these headers ahead of static files and routes.
 app.use((req, res, next) => {
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
   res.setHeader('Cross-Origin-Embedder-Policy', 'require-corp');
   next();
 });
-
-app.use(express.static("public"))
 
 app.use(cookieParser());
 app.use(morgan('dev'));
@@ -31,8 +32,20 @@ app.use('/users', userRoutes);
 app.use('/projects', projectRoutes);
 app.use('/ai', aiRoutes);
 
-// app.get('/', (req, res) => {
-//     res.send('Hello World');
-// });
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+app.use(express.static('public'));
+
+// Serve the React application for browser routes without intercepting API
+// endpoints above. This is needed for refreshes on client-side routes.
+app.get('*splat', (req, res, next) => {
+  if (req.accepts('html')) {
+    return res.sendFile('index.html', { root: 'public' });
+  }
+
+  next();
+});
 
 export default app;

@@ -8,11 +8,15 @@ import mongoose from 'mongoose';
 import Project from './models/project.models.js';
 
 const PORT = process.env.PORT || 3000;
+const LOCAL_FRONTEND_ORIGIN = 'http://localhost:5173';
 
 const server = http.createServer(app);
 const io = new Server(server, {
 	cors: {
-		origin: '*'
+		// CORS is only necessary for the Vite development server. Render is
+		// same-origin, so it does not need a hard-coded deployment URL.
+		origin: LOCAL_FRONTEND_ORIGIN,
+		credentials: true
 	}
 });
 
@@ -89,6 +93,6 @@ io.on('connection', socket => {
 	});
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
 	console.log(`Server is running on port ${PORT}`);
 });
