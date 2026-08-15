@@ -5,7 +5,7 @@
 Live application: https://jarvis-spi0.onrender.com/
 
 <p align="center">
-  <img src="docs/screenshots/workspace.png" alt="Jarvis workspace" width="100%">
+  <img src="jarvis1.png" alt="Jarvis workspace" width="100%">
 </p>
 
 ## Overview
